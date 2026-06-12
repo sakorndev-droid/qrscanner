@@ -1,30 +1,206 @@
 <!DOCTYPE html>
-<html>
+
+<html lang="th">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>QR Scanner</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
+
 <style>
-body{
-margin:0;
-padding:10px;
-font-family:Sarabun,sans-serif;
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Sarabun',sans-serif;
 }
+
+body{
+    background:#000;
+    overflow:hidden;
+}
+
 #reader{
-width:100%;
+    width:100vw;
+    height:100vh;
+}
+
+.header{
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    z-index:999;
+    text-align:center;
+    padding:20px;
+    color:#fff;
+
+    background:linear-gradient(
+        rgba(0,0,0,.85),
+        rgba(0,0,0,0)
+    );
+}
+
+.school{
+    font-size:24px;
+    font-weight:700;
+}
+
+.subtitle{
+    font-size:14px;
+    opacity:.9;
+}
+
+.scan-box{
+    position:absolute;
+    width:280px;
+    height:280px;
+
+    top:50%;
+    left:50%;
+
+    transform:translate(-50%,-50%);
+
+    border:4px solid #00ff88;
+    border-radius:25px;
+
+    box-shadow:
+    0 0 20px #00ff88,
+    0 0 40px #00ff88;
+
+    pointer-events:none;
+    z-index:999;
+}
+
+.scan-line{
+    position:absolute;
+    left:10px;
+    right:10px;
+    height:4px;
+    background:#00ff88;
+
+    animation:scan 2s linear infinite;
+}
+
+@keyframes scan{
+    from{
+        top:10px;
+    }
+    to{
+        top:250px;
+    }
+}
+
+.result{
+    position:absolute;
+    bottom:110px;
+    left:20px;
+    right:20px;
+
+    text-align:center;
+    color:white;
+
+    font-size:20px;
+    font-weight:bold;
+
+    z-index:999;
+}
+
+.footer{
+    position:absolute;
+    bottom:20px;
+    left:20px;
+    right:20px;
+
+    text-align:center;
+    z-index:999;
+}
+
+.btn-close{
+    border:none;
+
+    background:#ef4444;
+    color:white;
+
+    padding:14px 30px;
+
+    border-radius:50px;
+
+    font-size:16px;
+    font-weight:bold;
+
+    cursor:pointer;
+
+    box-shadow:0 10px 25px rgba(0,0,0,.3);
+}
+
+.btn-close:hover{
+    transform:scale(1.05);
+}
+
+.success{
+    color:#00ff88;
 }
 </style>
-</head>
 
+</head>
 <body>
+
+<div class="header">
+    <div class="school">
+        📷 ระบบสแกน QR Code
+    </div>
+
+```
+<div class="subtitle">
+    โรงเรียนอนุบาลพิบูลมังสาหารวิภาคย์วิทยากร
+</div>
+```
+
+</div>
 
 <div id="reader"></div>
 
+<div class="scan-box">
+    <div class="scan-line"></div>
+</div>
+
+<div id="result" class="result"></div>
+
+<div class="footer">
+    <button class="btn-close" onclick="closeScanner()">
+        ❌ ปิดหน้าสแกน
+    </button>
+</div>
+
 <script>
 
+let scanner;
+
+function beep(){
+
+    const audio = new Audio(
+        "https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"
+    );
+
+    audio.play();
+
+}
+
 function onScanSuccess(decodedText){
+
+    document.getElementById("result").innerHTML =
+    '<span class="success">✅ สแกนสำเร็จ : '+decodedText+'</span>';
+
+    if(navigator.vibrate){
+        navigator.vibrate(300);
+    }
+
+    beep();
 
     if(window.opener){
 
@@ -37,15 +213,70 @@ function onScanSuccess(decodedText){
 
     }
 
+    setTimeout(()=>{
+        window.close();
+    },1200);
+
 }
 
-new Html5QrcodeScanner(
-"reader",
-{
-fps:10,
-qrbox:250
+async function startScanner(){
+
+    scanner = new Html5Qrcode("reader");
+
+    const cameras =
+    await Html5Qrcode.getCameras();
+
+    let selectedCamera = cameras[0];
+
+    for(let camera of cameras){
+
+        const label =
+        camera.label.toLowerCase();
+
+        if(
+            label.includes("back") ||
+            label.includes("rear") ||
+            label.includes("environment")
+        ){
+
+            selectedCamera = camera;
+            break;
+        }
+    }
+
+    scanner.start(
+        selectedCamera.id,
+        {
+            fps:10,
+            qrbox:250,
+            aspectRatio:1.0
+        },
+        onScanSuccess
+    );
+
 }
-).render(onScanSuccess);
+
+function closeScanner(){
+
+    if(scanner){
+
+        scanner.stop()
+        .then(()=>{
+            window.close();
+        })
+        .catch(()=>{
+            window.close();
+        });
+
+    }else{
+
+        window.close();
+
+    }
+
+}
+
+startScanner();
 
 </script>
 
