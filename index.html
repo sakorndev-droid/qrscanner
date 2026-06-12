@@ -1,171 +1,202 @@
 <!DOCTYPE html>
-
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QR Scanner</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-<title>QR Scanner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Sarabun', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-<script src="https://unpkg.com/html5-qrcode"></script>
+        body {
+            background: #0d0f12;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
 
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
+        /* ปรับสไตล์ตัวอ่านกล้องของ Html5Qrcode ให้เต็มจอและไม่ขัดตา */
+        #reader {
+            width: 100vw !important;
+            height: 100vh !important;
+            position: absolute;
+            top: 0;
+            left: 0;
+            object-fit: cover;
+            z-index: 1;
+        }
 
-<style>
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family:'Sarabun',sans-serif;
-}
+        #reader video {
+            object-fit: cover !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
 
-body{
-    background:#000;
-    overflow:hidden;
-}
+        /* ส่วนหัวดีไซน์แบบโปร่งแสงหรูหรา */
+        .header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 999;
+            text-align: center;
+            padding: 24px 20px;
+            color: #fff;
+            background: linear-gradient(rgba(13, 15, 18, 0.9), rgba(13, 15, 18, 0));
+        }
 
-#reader{
-    width:100vw;
-    height:100vh;
-}
+        .school {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
 
-.header{
-    position:absolute;
-    top:0;
-    left:0;
-    right:0;
-    z-index:999;
-    text-align:center;
-    padding:20px;
-    color:#fff;
+        .subtitle {
+            font-size: 13px;
+            opacity: 0.8;
+            font-weight: 300;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
 
-    background:linear-gradient(
-        rgba(0,0,0,.85),
-        rgba(0,0,0,0)
-    );
-}
+        /* ช่องสแกนแบบล้ำสมัย (Corner Borders) */
+        .scan-box {
+            position: absolute;
+            width: 260px;
+            height: 260px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 999;
+            box-shadow: 0 0 0 4000px rgba(13, 15, 18, 0.65); /* ฉากหลังมืดรอบกล่อง */
+            border-radius: 4px;
+        }
 
-.school{
-    font-size:24px;
-    font-weight:700;
-}
+        /* มุมทั้ง 4 ของกรอบสแกน */
+        .scan-box::before, .scan-box::after, .scan-box-inner::before, .scan-box-inner::after {
+            content: "";
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 4px solid #00ff88;
+        }
+        .scan-box::before { top: 0; left: 0; border-right: none; border-bottom: none; border-top-left-radius: 16px; }
+        .scan-box::after { top: 0; right: 0; border-left: none; border-bottom: none; border-top-right-radius: 16px; }
+        
+        .scan-box-inner {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        .scan-box-inner::before { bottom: 0; left: 0; border-right: none; border-top: none; border-bottom-left-radius: 16px; }
+        .scan-box-inner::after { bottom: 0; right: 0; border-left: none; border-top: none; border-bottom-right-radius: 16px; }
 
-.subtitle{
-    font-size:14px;
-    opacity:.9;
-}
+        /* เส้นเลเซอร์วิ่งสแกนแบบนุ่มนวล */
+        .scan-line {
+            position: absolute;
+            left: 15px;
+            right: 15px;
+            height: 3px;
+            background: linear-gradient(90deg, rgba(0,255,136,0), rgba(0,255,136,1) 50%, rgba(0,255,136,0));
+            box-shadow: 0 0 12px #00ff88, 0 0 20px #00ff88;
+            animation: scan 2.5s ease-in-out infinite;
+        }
 
-.scan-box{
-    position:absolute;
-    width:280px;
-    height:280px;
+        @keyframes scan {
+            0% { top: 20px; opacity: 0.3; }
+            50% { top: 240px; opacity: 1; }
+            100% { top: 20px; opacity: 0.3; }
+        }
 
-    top:50%;
-    left:50%;
+        /* แสดงผลลัพธ์แบบ Minimalistic Card */
+        .result {
+            position: absolute;
+            bottom: 120px;
+            left: 20px;
+            right: 20px;
+            text-align: center;
+            z-index: 999;
+            pointer-events: none;
+        }
 
-    transform:translate(-50%,-50%);
+        .result-card {
+            display: inline-block;
+            background: rgba(13, 15, 18, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 12px 24px;
+            border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            max-width: 90%;
+        }
 
-    border:4px solid #00ff88;
-    border-radius:25px;
+        .success {
+            color: #00ff88;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
 
-    box-shadow:
-    0 0 20px #00ff88,
-    0 0 40px #00ff88;
+        /* ปุ่มกดสไตล์พรีเมียม */
+        .footer {
+            position: absolute;
+            bottom: 40px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            z-index: 999;
+        }
 
-    pointer-events:none;
-    z-index:999;
-}
+        .btn-close {
+            border: none;
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            padding: 14px 36px;
+            border-radius: 50px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.1);
+        }
 
-.scan-line{
-    position:absolute;
-    left:10px;
-    right:10px;
-    height:4px;
-    background:#00ff88;
-
-    animation:scan 2s linear infinite;
-}
-
-@keyframes scan{
-    from{
-        top:10px;
-    }
-    to{
-        top:250px;
-    }
-}
-
-.result{
-    position:absolute;
-    bottom:110px;
-    left:20px;
-    right:20px;
-
-    text-align:center;
-    color:white;
-
-    font-size:20px;
-    font-weight:bold;
-
-    z-index:999;
-}
-
-.footer{
-    position:absolute;
-    bottom:20px;
-    left:20px;
-    right:20px;
-
-    text-align:center;
-    z-index:999;
-}
-
-.btn-close{
-    border:none;
-
-    background:#ef4444;
-    color:white;
-
-    padding:14px 30px;
-
-    border-radius:50px;
-
-    font-size:16px;
-    font-weight:bold;
-
-    cursor:pointer;
-
-    box-shadow:0 10px 25px rgba(0,0,0,.3);
-}
-
-.btn-close:hover{
-    transform:scale(1.05);
-}
-
-.success{
-    color:#00ff88;
-}
-</style>
-
+        .btn-close:active {
+            transform: scale(0.95);
+            background: rgba(239, 68, 68, 0.4);
+        }
+    </style>
 </head>
 <body>
 
 <div class="header">
-    <div class="school">
-        📷 ระบบสแกน QR Code
-    </div>
-
-```
-<div class="subtitle">
-    โรงเรียนอนุบาลพิบูลมังสาหารวิภาคย์วิทยากร
-</div>
-```
-
+    <div class="school">📷 ระบบสแกน QR Code</div>
+    <div class="subtitle">โรงเรียนอนุบาลพิบูลมังสาหารวิภาคย์วิทยากร</div>
 </div>
 
 <div id="reader"></div>
 
 <div class="scan-box">
+    <div class="scan-box-inner"></div>
     <div class="scan-line"></div>
 </div>
 
@@ -178,106 +209,97 @@ body{
 </div>
 
 <script>
-
 let scanner;
 
-function beep(){
-
-    const audio = new Audio(
-        "https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"
-    );
-
+function beep() {
+    const audio = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
     audio.play();
-
 }
 
-function onScanSuccess(decodedText){
+function onScanSuccess(decodedText) {
+    document.getElementById("result").innerHTML = `
+        <div class="result-card">
+            <span class="success">✅ สแกนสำเร็จ: ${decodedText}</span>
+        </div>
+    `;
 
-    document.getElementById("result").innerHTML =
-    '<span class="success">✅ สแกนสำเร็จ : '+decodedText+'</span>';
-
-    if(navigator.vibrate){
+    if (navigator.vibrate) {
         navigator.vibrate(300);
     }
 
     beep();
 
-    if(window.opener){
-
-        window.opener.postMessage(
-        {
-            type:"QR_SCANNED",
-            id:decodedText
-        },
-        "*");
-
+    if (window.opener) {
+        window.opener.postMessage({
+            type: "QR_SCANNED",
+            id: decodedText
+        }, "*");
     }
 
-    setTimeout(()=>{
+    setTimeout(() => {
         window.close();
-    },1200);
-
+    }, 1200);
 }
 
-async function startScanner(){
-
+async function startScanner() {
     scanner = new Html5Qrcode("reader");
 
-    const cameras =
-    await Html5Qrcode.getCameras();
-
-    let selectedCamera = cameras[0];
-
-    for(let camera of cameras){
-
-        const label =
-        camera.label.toLowerCase();
-
-        if(
-            label.includes("back") ||
-            label.includes("rear") ||
-            label.includes("environment")
-        ){
-
-            selectedCamera = camera;
-            break;
-        }
-    }
-
-    scanner.start(
-        selectedCamera.id,
-        {
-            fps:10,
-            qrbox:250,
-            aspectRatio:1.0
+    // กำหนดรูปแบบการเรียกกล้องหลังโดยตรง (รองรับดีที่สุดสำหรับ iPhone/Safari และ Android)
+    const config = {
+        fps: 15,
+        qrbox: function(width, height) {
+            // ปรับขนาดกล่องสแกนภายในโค้ดให้สัมพันธ์กับหน้าจอจริง
+            return { width: 250, height: 250 };
         },
+        aspectRatio: window.screen.width / window.screen.height
+    };
+
+    // ใช้คำสั่ง 'environment' เพื่อบังคับให้ iOS / Android เรียกใช้กล้องหลังทันทีโดยอัตโนมัติ
+    scanner.start(
+        { facingMode: "environment" },
+        config,
         onScanSuccess
-    );
-
+    ).catch(err => {
+        // กรณีดักจับเผื่อตัวแปร environment มีปัญหาบนเบราว์เซอร์โบราณ จะสลับไปดึง ID กล้องหลังตามเดิมให้ครับ
+        fallbackCameraStart();
+    });
 }
 
-function closeScanner(){
+async function fallbackCameraStart() {
+    try {
+        const cameras = await Html5Qrcode.getCameras();
+        let selectedCamera = cameras[0];
 
-    if(scanner){
+        for (let camera of cameras) {
+            const label = camera.label.toLowerCase();
+            if (label.includes("back") || label.includes("rear") || label.includes("environment")) {
+                selectedCamera = camera;
+                break;
+            }
+        }
 
-        scanner.stop()
-        .then(()=>{
-            window.close();
-        })
-        .catch(()=>{
-            window.close();
-        });
-
-    }else{
-
-        window.close();
-
+        scanner.start(
+            selectedCamera.id,
+            { fps: 15, qrbox: { width: 250, height: 250 } },
+            onScanSuccess
+        );
+    } catch (err) {
+        console.error("ไม่สามารถเปิดกล้องได้:", err);
     }
-
 }
 
-startScanner();
+function closeScanner() {
+    if (scanner) {
+        scanner.stop()
+            .then(() => { window.close(); })
+            .catch(() => { window.close(); });
+    } else {
+        window.close();
+    }
+}
 
+// เริ่มต้นเปิดใช้งานกล้องทันทีเมื่อโหลดหน้าเว็บ
+window.addEventListener('DOMContentLoaded', startScanner);
 </script>
 
 </body>
