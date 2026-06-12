@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>QR Scanner (Fast & Large Scan)</title>
+    <title>QR Scanner (Continuous Fast Scan)</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
 
@@ -70,26 +70,27 @@
             text-shadow: 0 1px 3px rgba(0,0,0,0.5);
         }
 
-        /* [ปรับปรุง] ขยายขนาดกรอบสแกนให้ใหญ่ขึ้นเป็น 320px x 320px */
         .scan-box {
             position: absolute;
             width: 320px;
             height: 320px;
-            top: 48%; /* ขยับขึ้นเล็กน้อยเพื่อให้สมดุลกับพื้นที่หน้าจอมือถือ */
+            top: 48%;
             left: 50%;
             transform: translate(-50%, -50%);
             pointer-events: none;
             z-index: 999;
             box-shadow: 0 0 0 4000px rgba(13, 15, 18, 0.65);
             border-radius: 4px;
+            transition: all 0.2s ease;
         }
 
         .scan-box::before, .scan-box::after, .scan-box-inner::before, .scan-box-inner::after {
             content: "";
             position: absolute;
-            width: 35px; /* เพิ่มความยาวของมุมตามขนาดกล่อง */
+            width: 35px;
             height: 35px;
-            border: 5px solid #00ff88; /* เพิ่มความหนาของเส้นมุมให้เด่นชัดขึ้น */
+            border: 5px solid #00ff88;
+            transition: border-color 0.2s ease;
         }
         .scan-box::before { top: 0; left: 0; border-right: none; border-bottom: none; border-top-left-radius: 20px; }
         .scan-box::after { top: 0; right: 0; border-left: none; border-bottom: none; border-top-right-radius: 20px; }
@@ -102,6 +103,14 @@
         .scan-box-inner::before { bottom: 0; left: 0; border-right: none; border-top: none; border-bottom-left-radius: 20px; }
         .scan-box-inner::after { bottom: 0; right: 0; border-left: none; border-top: none; border-bottom-right-radius: 20px; }
 
+        /* เอฟเฟกต์ไฟกะพริบสีเขียวเมื่อสแกนสำเร็จสำเร็จ */
+        .scan-box.flash::before, .scan-box.flash::after, .scan-box.flash .scan-box-inner::before, .scan-box.flash .scan-box-inner::after {
+            border-color: #ffffff !important;
+        }
+        .scan-box.flash {
+            box-shadow: 0 0 0 4000px rgba(0, 255, 136, 0.2), 0 0 50px rgba(255,255,255,0.8);
+        }
+
         .scan-line {
             position: absolute;
             left: 20px;
@@ -112,7 +121,6 @@
             animation: scan 2s ease-in-out infinite;
         }
 
-        /* [ปรับปรุง] ขยายระยะวิ่งของเส้นเลเซอร์ให้สุดขอบกล่องใหม่ */
         @keyframes scan {
             0% { top: 20px; opacity: 0.3; }
             50% { top: 300px; opacity: 1; }
@@ -139,6 +147,12 @@
             border: 1px solid rgba(255,255,255,0.1);
             box-shadow: 0 8px 32px rgba(0,0,0,0.3);
             max-width: 90%;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
         }
 
         .success {
@@ -184,13 +198,13 @@
 <body>
 
 <div class="header">
-    <div class="school">📷 ระบบสแกน QR Code</div>
+    <div class="school">📷 ระบบสแกน QR Code (ต่อเนื่อง)</div>
     <div class="subtitle">โรงเรียนอนุบาลพิบูลมังสาหารวิภาคย์วิทยากร</div>
 </div>
 
 <div id="reader"></div>
 
-<div class="scan-box">
+<div id="scanBox" class="scan-box">
     <div class="scan-box-inner"></div>
     <div class="scan-line"></div>
 </div>
@@ -205,6 +219,8 @@
 
 <script>
 let scanner;
+let isScanningPaused = false; 
+const COOLDOWN_TIME = 1500; // เวลาหน่วงในการสแกนชิ้นถัดไป (1500 มิลลิวินาที = 1.5 วินาที)
 
 function beep() {
     const audio = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
@@ -212,18 +228,30 @@ function beep() {
 }
 
 function onScanSuccess(decodedText) {
+    // ถ้าระบบยังอยู่ในช่วงหน่วงเวลาสแกนซ้ำ ให้ข้ามการประมวลผลไปก่อน เพื่อความเร็วและเสถียรภาพ
+    if (isScanningPaused) return;
+    
+    isScanningPaused = true;
+
+    // แสดงผลข้อมูลที่สแกนได้ล่าสุดบนหน้าจอ
     document.getElementById("result").innerHTML = `
         <div class="result-card">
-            <span class="success">✅ สแกนสำเร็จ: ${decodedText}</span>
+            <span class="success">✅ บันทึกแล้ว: ${decodedText}</span>
         </div>
     `;
 
+    // เอฟเฟกต์ไฟแฟลชกะพริบที่ตัวกรอบเล็ง
+    const scanBox = document.getElementById("scanBox");
+    scanBox.classList.add("flash");
+    setTimeout(() => { scanBox.classList.remove("flash"); }, 250);
+
     if (navigator.vibrate) {
-        navigator.vibrate(300);
+        navigator.vibrate(200);
     }
 
     beep();
 
+    // ส่งข้อมูลไปยังหน้าหลักหลักแบบ Real-time โดยไม่ปิดหน้าต่าง
     if (window.opener) {
         window.opener.postMessage({
             type: "QR_SCANNED",
@@ -231,17 +259,18 @@ function onScanSuccess(decodedText) {
         }, "*");
     }
 
+    // เมื่อครบกำหนดเวลาหน่วง จะเคลียร์สถานะเพื่อให้พร้อมสแกนคิวอาร์โค้ดใบถัดไปได้ทันที
     setTimeout(() => {
-        window.close();
-    }, 1200);
+        isScanningPaused = false;
+    }, COOLDOWN_TIME);
 }
 
 async function startScanner() {
     scanner = new Html5Qrcode("reader");
 
     const config = {
-        fps: 30,             // คงความเร็วการสแกนระดับสูงสุดไว้
-        qrbox: undefined,    // สแกนแบบ Full-screen ทั่วหน้าจอเหมือนเดิมเพื่อความรวดเร็ว
+        fps: 30,             // ประมวลผลภาพความถี่สูงสุด
+        qrbox: undefined,    // ตรวจจับภาพเร็วแบบกระจายเต็มจอเบื้องหลัง
         aspectRatio: window.screen.width / window.screen.height,
         disableFlip: true
     };
