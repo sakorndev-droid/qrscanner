@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>QR Scanner (Continuous Fast Scan)</title>
+    <title>QR Scanner (Ultra Fast Mode)</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
 
@@ -103,7 +103,6 @@
         .scan-box-inner::before { bottom: 0; left: 0; border-right: none; border-top: none; border-bottom-left-radius: 20px; }
         .scan-box-inner::after { bottom: 0; right: 0; border-left: none; border-top: none; border-bottom-right-radius: 20px; }
 
-        /* เอฟเฟกต์ไฟกะพริบสีเขียวเมื่อสแกนสำเร็จสำเร็จ */
         .scan-box.flash::before, .scan-box.flash::after, .scan-box.flash .scan-box-inner::before, .scan-box.flash .scan-box-inner::after {
             border-color: #ffffff !important;
         }
@@ -220,7 +219,7 @@
 <script>
 let scanner;
 let isScanningPaused = false; 
-const COOLDOWN_TIME = 1500; // เวลาหน่วงในการสแกนชิ้นถัดไป (1500 มิลลิวินาที = 1.5 วินาที)
+const COOLDOWN_TIME = 1200; // ปรับลดเวลาหน่วงเหลือ 1.2 วินาที เพื่อให้พร้อมสแกนใบต่อไปไวขึ้นอีก
 
 function beep() {
     const audio = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
@@ -228,19 +227,15 @@ function beep() {
 }
 
 function onScanSuccess(decodedText) {
-    // ถ้าระบบยังอยู่ในช่วงหน่วงเวลาสแกนซ้ำ ให้ข้ามการประมวลผลไปก่อน เพื่อความเร็วและเสถียรภาพ
     if (isScanningPaused) return;
-    
     isScanningPaused = true;
 
-    // แสดงผลข้อมูลที่สแกนได้ล่าสุดบนหน้าจอ
     document.getElementById("result").innerHTML = `
         <div class="result-card">
             <span class="success">✅ บันทึกแล้ว: ${decodedText}</span>
         </div>
     `;
 
-    // เอฟเฟกต์ไฟแฟลชกะพริบที่ตัวกรอบเล็ง
     const scanBox = document.getElementById("scanBox");
     scanBox.classList.add("flash");
     setTimeout(() => { scanBox.classList.remove("flash"); }, 250);
@@ -251,7 +246,6 @@ function onScanSuccess(decodedText) {
 
     beep();
 
-    // ส่งข้อมูลไปยังหน้าหลักหลักแบบ Real-time โดยไม่ปิดหน้าต่าง
     if (window.opener) {
         window.opener.postMessage({
             type: "QR_SCANNED",
@@ -259,7 +253,6 @@ function onScanSuccess(decodedText) {
         }, "*");
     }
 
-    // เมื่อครบกำหนดเวลาหน่วง จะเคลียร์สถานะเพื่อให้พร้อมสแกนคิวอาร์โค้ดใบถัดไปได้ทันที
     setTimeout(() => {
         isScanningPaused = false;
     }, COOLDOWN_TIME);
@@ -268,11 +261,17 @@ function onScanSuccess(decodedText) {
 async function startScanner() {
     scanner = new Html5Qrcode("reader");
 
+    // [จุดที่ปรับเปลี่ยน] บังคับสเกลภาพวิดีโอให้เล็กลงเพื่อให้ระบบถอดรหัสทำได้เร็วแบบ Instant ติดทันที
     const config = {
-        fps: 30,             // ประมวลผลภาพความถี่สูงสุด
-        qrbox: undefined,    // ตรวจจับภาพเร็วแบบกระจายเต็มจอเบื้องหลัง
-        aspectRatio: window.screen.width / window.screen.height,
-        disableFlip: true
+        fps: 30,
+        qrbox: undefined, // ค้นหาทั้งหน้าจอ ไม่เสียเวลาตีกรอบจำกัดพื้นที่สแกน
+        disableFlip: true,
+        videoConstraints: {
+            facingMode: "environment",
+            // บังคับความละเอียดระดับประมวลผลเร็ว (Ideal resolution for rapid QR parsing)
+            width: { ideal: 800 },
+            height: { ideal: 600 }
+        }
     };
 
     scanner.start(
@@ -299,7 +298,11 @@ async function fallbackCameraStart() {
 
         scanner.start(
             selectedCamera.id,
-            { fps: 30, disableFlip: true },
+            { 
+                fps: 30, 
+                disableFlip: true,
+                videoConstraints: { width: { ideal: 800 }, height: { ideal: 600 } }
+            },
             onScanSuccess
         );
     } catch (err) {
