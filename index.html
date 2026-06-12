@@ -1,131 +1,236 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QR Scanner Popup</title>
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    body { 
-      font-family: 'Sarabun', sans-serif; 
-      background: #f4f7f6; 
-      margin: 0; 
-      padding: 20px; 
-      text-align: center; 
-    }
-    #reader { 
-      width: 100%; 
-      max-width: 400px; 
-      margin: 0 auto; 
-      background: white; 
-      border-radius: 12px; 
-      overflow: hidden; 
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
-      border: 2px dashed #dee2e6;
-    }
-    #status { 
-      margin-top: 15px; 
-      font-size: 18px; 
-      font-weight: 600; 
-      color: #6c757d; 
-    }
-    .btn-close-popup {
-      margin-top: 15px; 
-      padding: 10px 24px; 
-      background: #dc3545; 
-      color: white; 
-      border: none; 
-      border-radius: 8px; 
-      cursor: pointer; 
-      font-size: 16px;
-      font-family: 'Sarabun', sans-serif;
-      box-shadow: 0 4px 8px rgba(220, 53, 69, 0.2);
-    }
-    .btn-switch {
-      margin-top: 15px; 
-      padding: 10px 24px; 
-      background: #0d6efd; 
-      color: white; 
-      border: none; 
-      border-radius: 8px; 
-      cursor: pointer; 
-      font-size: 16px;
-      font-family: 'Sarabun', sans-serif;
-      box-shadow: 0 4px 8px rgba(13, 110, 253, 0.2);
-      display: none; /* ซ่อนไว้ก่อน จะโชว์เมื่อมีกล้อง > 1 ตัว */
-      margin-right: 10px;
-    }
-    .flash { animation: flashEffect 0.3s ease-out; }
-    @keyframes flashEffect {
-      0% { background-color: #4CAF50; }
-      100% { background-color: white; }
-    }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Scanner Popup</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #4f46e5;
+      --primary-hover: #4338ca;
+      --danger-color: #ef4444;
+      --danger-hover: #dc2626;
+      --success-bg: #dcfce7;
+      --success-text: #166534;
+      --bg-gradient: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    }
+
+    body { 
+      font-family: 'Sarabun', sans-serif; 
+      background: var(--bg-gradient); 
+      margin: 0; 
+      padding: 16px; 
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 90vh;
+    }
+
+    .scanner-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      padding: 24px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      box-sizing: border-box;
+      text-align: center;
+    }
+
+    .title {
+      color: #1e293b;
+      font-size: 20px;
+      font-weight: 700;
+      margin-top: 0;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .subtitle {
+      color: #64748b;
+      font-size: 13px;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    /* กล่องสแกนเนอร์และลูกเล่นกรอบเล็ง */
+    .reader-wrapper {
+      position: relative;
+      width: 100%;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+      background: #000;
+    }
+
+    #reader { 
+      width: 100%; 
+      border: none !important; /* ลบเส้นประเก่าออก */
+    }
+
+    /* ซ่อนส่วนติดต่อผู้ใช้เดิมของ html5-qrcode เพื่อให้ UI คลีน */
+    #reader b, #reader span { display: none !important; }
+
+    /* เส้นเลเซอร์วิ่งสแกน */
+    .laser-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(to right, transparent, #22c55e, transparent);
+      box-shadow: 0 0 8px #22c55e;
+      animation: scanAnimation 2s linear infinite;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    @keyframes scanAnimation {
+      0% { top: 0%; }
+      50% { top: 100%; }
+      100% { top: 0%; }
+    }
+
+    /* สถานะ */
+    #status { 
+      margin-top: 20px; 
+      font-size: 15px; 
+      font-weight: 600; 
+      color: #475569; 
+      padding: 10px 16px;
+      background: #f1f5f9;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+      display: inline-block;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* ปุ่มกดสไตล์โมเดิร์น */
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px 16px; 
+      border: none; 
+      border-radius: 14px; 
+      cursor: pointer; 
+      font-size: 15px;
+      font-weight: 600;
+      font-family: 'Sarabun', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-switch {
+      background: var(--primary-color); 
+      color: white; 
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+      display: none; /* ซ่อนไว้ก่อน จะโชว์เมื่อมีกล้อง > 1 ตัว */
+    }
+    .btn-switch:hover { background: var(--primary-hover); transform: translateY(-1px); }
+    .btn-switch:active { transform: translateY(1px); }
+
+    .btn-close-popup {
+      background: #fee2e2; 
+      color: var(--danger-hover); 
+    }
+    .btn-close-popup:hover { background: #fca5a5; transform: translateY(-1px); }
+    .btn-close-popup:active { transform: translateY(1px); }
+
+    /* เอฟเฟกต์ตอนสแกนติด */
+    .flash { animation: flashEffect 0.3s ease-out; }
+    @keyframes flashEffect {
+      0% { opacity: 0.3; background-color: #22c55e; }
+      100% { opacity: 1; background-color: transparent; }
+    }
+  </style>
 </head>
 <body>
-  <h3 style="color: #333538; margin-bottom: 20px;">📷 สแกน QR Code เช็คชื่อ</h3>
-  <div id="reader"></div>
-  <div id="status">กำลังเปิดกล้อง...</div>
-  <p style="color: #888; font-size: 14px; margin-top: 5px;">(ถอยกล้องให้เห็น QR Code ชัดๆ ถอดแมสก์/ลดแสงจอ)</p>
-  
-  <button id="btn-switch" class="btn-switch" onclick="switchCamera()">🔄 สลับกล้อง</button>
-  <button class="btn-close-popup" onclick="window.close()">ปิดหน้าต่างกล้อง</button>
 
-  <audio id="beep-sound" src="https://www.soundjay.com/buttons/sounds/button-09.mp3" preload="auto"></audio>
+  <div class="scanner-container">
+    <h3 class="title">📷 สแกน QR Code เช็คชื่อ</h3>
+    <p class="subtitle">ถอยกล้องให้เห็น QR Code ชัดเจน<br>(ลดแสงหน้าจอ หรือถอดแมสก์หากระบบติดขัด)</p>
+    
+    <div class="reader-wrapper">
+      <div class="laser-line"></div>
+      <div id="reader"></div>
+    </div>
+    
+    <div id="status">⏳ กำลังเปิดกล้องระบบ...</div>
+    
+    <div class="button-group">
+      <button id="btn-switch" class="btn btn-switch" onclick="switchCamera()">🔄 สลับกล้อง</button>
+      <button class="btn btn-close-popup" onclick="window.close()">❌ ปิดหน้าต่าง</button>
+    </div>
+  </div>
 
-  <script>
-    const html5QrCode = new Html5Qrcode("reader");
-    const statusDiv = document.getElementById('status');
-    const beepSound = document.getElementById('beep-sound');
-    const btnSwitch = document.getElementById('btn-switch');
-    
-    let lastScan = ""; 
-    const config = { fps: 10 }; 
-    let cameras = [];
-    let currentCameraIndex = 0;
-    let isScanning = false;
+  <audio id="beep-sound" src="https://www.soundjay.com/buttons/sounds/button-09.mp3" preload="auto"></audio>
 
-    // 1. ดึงข้อมูลกล้องทั้งหมดในเครื่อง
+  <script>
+    const html5QrCode = new Html5Qrcode("reader");
+    const statusDiv = document.getElementById('status');
+    const beepSound = document.getElementById('beep-sound');
+    const btnSwitch = document.getElementById('btn-switch');
+    
+    let lastScan = ""; 
+    let cameras = [];
+    let currentCameraIndex = 0;
+    let isScanning = false;
+
+    // 1. ดึงข้อมูลกล้องทั้งหมดในเครื่อง
     Html5Qrcode.getCameras().then(devices => {
       if (devices && devices.length) {
         cameras = devices;
         
-        // ถ้ามีกล้องมากกว่า 1 ตัว ให้แสดงปุ่มสลับกล้อง
         if (cameras.length > 1) {
-          btnSwitch.style.display = "inline-block";
+          btnSwitch.style.display = "flex"; // ใช้ flex ให้เข้ากับสไตล์ปุ่มคู่
         }
         
-        // พยายามหากล้องหลัง (Environment/Back) จากชื่อ
         let backCamIndex = cameras.findIndex(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('environment'));
         
         if (backCamIndex !== -1) {
-          // ถ้าเป็น Android หรือระบบที่บอกชื่อกล้องชัดเจน จะเข้าเงื่อนไขนี้
           currentCameraIndex = backCamIndex;
           startScanner(cameras[currentCameraIndex].id);
         } else {
-          // 🚀 [ดัดหลัง iPhone] ถ้าหาชื่อไม่เจอ (เพราะ iOS ซ่อนไว้) 
-          // ห้ามใช้ Index 0 แต่ให้ส่งคำสั่งบังคับเปิดกล้องหลัง (Environment) แทน!
           startScanner({ facingMode: "environment" });
         }
       } else {
-        statusDiv.innerHTML = `<span style="color: #dc3545;">❌ ไม่พบกล้องในอุปกรณ์นี้</span>`;
+        updateStatus(`❌ ไม่พบกล้องในอุปกรณ์นี้`, "#fee2e2", "#b91c1c");
       }
     }).catch(err => {
-      // แผนสำรองสุดท้าย
       startScanner({ facingMode: "environment" });
     });
+
+    // ฟังก์ชันช่วยอัปเดตสีของสเตตัสให้สวยงามตามสถานการณ์
+    function updateStatus(text, bgColor = "#f1f5f9", textColor = "#475569") {
+      statusDiv.innerHTML = text;
+      statusDiv.style.backgroundColor = bgColor;
+      statusDiv.style.color = textColor;
+    }
 
     // 2. ฟังก์ชันเปิดกล้อง
     function startScanner(cameraIdOrConfig) {
       isScanning = true;
       
-      // ปรับจูน config เพิ่มเติมให้เข้ากับ iPhone มากขึ้น
       const advancedConfig = {
-        fps: 10,
+        fps: 12, // เพิ่มความลื่นไหลในการตรวจจับขึ้นเล็กน้อย
         videoConstraints: {
-          facingMode: "environment", // ย้ำอีกรอบให้มั่นใจว่าเอากล้องหลัง
-          focusMode: "continuous" // พยายามบังคับออโต้โฟกัส (มีผลกับมือถือบางรุ่น)
+          facingMode: "environment",
+          focusMode: "continuous"
         }
       };
 
@@ -138,10 +243,12 @@
             lastScan = id;
             
             beepSound.play().catch(e => console.log("Audio play prevented"));
-            document.getElementById('reader').classList.add('flash');
-            setTimeout(() => document.getElementById('reader').classList.remove('flash'), 300);
+            
+            const wrapper = document.querySelector('.reader-wrapper');
+            wrapper.classList.add('flash');
+            setTimeout(() => wrapper.classList.remove('flash'), 300);
 
-            statusDiv.innerHTML = `<span style="color: #198754;">✅ สแกนล่าสุดรหัส: ${id}</span>`;
+            updateStatus(`🎉 สแกนสำเร็จ: ${id}`, "#dcfce7", "#166534");
             
             if (window.opener) {
               window.opener.postMessage({ type: 'QR_SCANNED', id: id }, "*");
@@ -149,37 +256,34 @@
 
             setTimeout(() => { 
               lastScan = ""; 
-              statusDiv.innerHTML = "🟢 พร้อมสแกนรหัสต่อไป..."; 
-            }, 2000);
+              updateStatus("🟢 พร้อมสแกนรหัสต่อไป...", "#e0f2fe", "#0369a1");
+            }, 2500);
           }
         }
       ).then(() => {
-        statusDiv.innerHTML = "🟢 กล้องพร้อมทำงาน! สแกนได้เลย";
+        updateStatus("🟢 กล้องพร้อมใช้งาน สแกนได้เลย", "#e0f2fe", "#0369a1");
       }).catch(err => {
-        statusDiv.innerHTML = `<span style="color: #dc3545;">❌ ไม่สามารถเข้าถึงกล้องได้</span>`;
+        updateStatus(`❌ ไม่สามารถเข้าถึงกล้องได้`, "#fee2e2", "#b91c1c");
       });
     }
 
-    // 3. ฟังก์ชันสลับกล้อง
-    function switchCamera() {
-      if (cameras.length > 1 && isScanning) {
-        btnSwitch.disabled = true;
-        statusDiv.innerHTML = "⏳ กำลังสลับกล้อง...";
-        
-        // หยุดกล้องตัวเดิมก่อน
-        html5QrCode.stop().then(() => {
-          isScanning = false;
-          // สลับไปกล้องตัวถัดไปในคิว
-          currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
-          // เปิดกล้องตัวใหม่
-          startScanner(cameras[currentCameraIndex].id);
-          btnSwitch.disabled = false;
-        }).catch(err => {
-          console.error("Error stopping camera", err);
-          btnSwitch.disabled = false;
-        });
-      }
-    }
-  </script>
+    // 3. ฟังก์ชันสลับกล้อง
+    function switchCamera() {
+      if (cameras.length > 1 && isScanning) {
+        btnSwitch.disabled = true;
+        updateStatus("⏳ กำลังสลับกล้อง...", "#fef08a", "#a16207");
+        
+        html5QrCode.stop().then(() => {
+          isScanning = false;
+          currentCameraIndex = (currentCameraIndex + 1) % cameras.length;
+          startScanner(cameras[currentCameraIndex].id);
+          btnSwitch.disabled = false;
+        }).catch(err => {
+          console.error("Error stopping camera", err);
+          btnSwitch.disabled = false;
+        });
+      }
+    }
+  </script>
 </body>
 </html>
