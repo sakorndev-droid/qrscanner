@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>QR Scanner</title>
+    <title>QR Scanner (Fast Scan)</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
 
@@ -27,7 +27,6 @@
             align-items: center;
         }
 
-        /* ปรับสไตล์ตัวอ่านกล้องของ Html5Qrcode ให้เต็มจอและไม่ขัดตา */
         #reader {
             width: 100vw !important;
             height: 100vh !important;
@@ -44,7 +43,6 @@
             height: 100% !important;
         }
 
-        /* ส่วนหัวดีไซน์แบบโปร่งแสงหรูหรา */
         .header {
             position: absolute;
             top: 0;
@@ -72,7 +70,6 @@
             text-shadow: 0 1px 3px rgba(0,0,0,0.5);
         }
 
-        /* ช่องสแกนแบบล้ำสมัย (Corner Borders) */
         .scan-box {
             position: absolute;
             width: 260px;
@@ -82,11 +79,10 @@
             transform: translate(-50%, -50%);
             pointer-events: none;
             z-index: 999;
-            box-shadow: 0 0 0 4000px rgba(13, 15, 18, 0.65); /* ฉากหลังมืดรอบกล่อง */
+            box-shadow: 0 0 0 4000px rgba(13, 15, 18, 0.65);
             border-radius: 4px;
         }
 
-        /* มุมทั้ง 4 ของกรอบสแกน */
         .scan-box::before, .scan-box::after, .scan-box-inner::before, .scan-box-inner::after {
             content: "";
             position: absolute;
@@ -105,7 +101,6 @@
         .scan-box-inner::before { bottom: 0; left: 0; border-right: none; border-top: none; border-bottom-left-radius: 16px; }
         .scan-box-inner::after { bottom: 0; right: 0; border-left: none; border-top: none; border-bottom-right-radius: 16px; }
 
-        /* เส้นเลเซอร์วิ่งสแกนแบบนุ่มนวล */
         .scan-line {
             position: absolute;
             left: 15px;
@@ -113,7 +108,7 @@
             height: 3px;
             background: linear-gradient(90deg, rgba(0,255,136,0), rgba(0,255,136,1) 50%, rgba(0,255,136,0));
             box-shadow: 0 0 12px #00ff88, 0 0 20px #00ff88;
-            animation: scan 2.5s ease-in-out infinite;
+            animation: scan 1.8s ease-in-out infinite; /* ปรับแอนิเมชันให้วิ่งเร็วขึ้นตามความเร็วสแกน */
         }
 
         @keyframes scan {
@@ -122,7 +117,6 @@
             100% { top: 20px; opacity: 0.3; }
         }
 
-        /* แสดงผลลัพธ์แบบ Minimalistic Card */
         .result {
             position: absolute;
             bottom: 120px;
@@ -154,7 +148,6 @@
             gap: 8px;
         }
 
-        /* ปุ่มกดสไตล์พรีเมียม */
         .footer {
             position: absolute;
             bottom: 40px;
@@ -244,23 +237,20 @@ function onScanSuccess(decodedText) {
 async function startScanner() {
     scanner = new Html5Qrcode("reader");
 
-    // กำหนดรูปแบบการเรียกกล้องหลังโดยตรง (รองรับดีที่สุดสำหรับ iPhone/Safari และ Android)
+    // CONFIGURATION ปรับความเร็วสูงสุดสำหรับการสแกนด่วน (Super Fast Scan)
     const config = {
-        fps: 15,
-        qrbox: function(width, height) {
-            // ปรับขนาดกล่องสแกนภายในโค้ดให้สัมพันธ์กับหน้าจอจริง
-            return { width: 250, height: 250 };
-        },
-        aspectRatio: window.screen.width / window.screen.height
+        fps: 30,             // เพิ่มการจับภาพเป็น 30 เฟรมต่อวินาที (ภาพลื่นขึ้น ตรวจจับโค้ดได้ถี่และไวขึ้นมาก)
+        qrbox: undefined,    // เปลี่ยนเป็น undefined เพื่อให้ระบบค้นหา QR Code ทั่วทั้งหน้าจอ ไม่จำกัดพื้นที่เล็ง
+        aspectRatio: window.screen.width / window.screen.height,
+        disableFlip: true    // ปิดการกลับด้านภาพ เพื่อประหยัด CPU ทำให้ประมวลผลภาพได้เร็วขึ้นอีกขั้น
     };
 
-    // ใช้คำสั่ง 'environment' เพื่อบังคับให้ iOS / Android เรียกใช้กล้องหลังทันทีโดยอัตโนมัติ
+    // บังคับเปิดกล้องหลังสิ่งแวดล้อม (environment) ทันที
     scanner.start(
         { facingMode: "environment" },
         config,
         onScanSuccess
     ).catch(err => {
-        // กรณีดักจับเผื่อตัวแปร environment มีปัญหาบนเบราว์เซอร์โบราณ จะสลับไปดึง ID กล้องหลังตามเดิมให้ครับ
         fallbackCameraStart();
     });
 }
@@ -280,7 +270,7 @@ async function fallbackCameraStart() {
 
         scanner.start(
             selectedCamera.id,
-            { fps: 15, qrbox: { width: 250, height: 250 } },
+            { fps: 30, disableFlip: true },
             onScanSuccess
         );
     } catch (err) {
@@ -298,7 +288,6 @@ function closeScanner() {
     }
 }
 
-// เริ่มต้นเปิดใช้งานกล้องทันทีเมื่อโหลดหน้าเว็บ
 window.addEventListener('DOMContentLoaded', startScanner);
 </script>
 
