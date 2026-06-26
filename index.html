@@ -178,12 +178,9 @@
     </div>
   </div>
 
-  <audio id="beep-sound" src="https://www.soundjay.com/buttons/sounds/button-09.mp3" preload="auto"></audio>
-
   <script>
     const html5QrCode = new Html5Qrcode("reader");
     const statusDiv = document.getElementById('status');
-    const beepSound = document.getElementById('beep-sound');
     const btnSwitch = document.getElementById('btn-switch');
     
     let lastScan = ""; 
@@ -191,13 +188,54 @@
     let currentCameraIndex = 0;
     let isScanning = false;
 
+    // --- ส่วนสร้างเสียงปี๊ปด้วย Web Audio API (ไม่ต้องพึ่งไฟล์เสียงภายนอก) ---
+    let audioCtx = null;
+    function playBeepSound() {
+      try {
+        // สร้าง AudioContext เมื่อมีการเรียกใช้งานครั้งแรก
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        // ปลดล็อกสถานะถ้าระบบเสียงถูกระงับไว้ (นโยบายของเบราว์เซอร์)
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.type = 'sine';      // รูปแบบคลื่นเสียงคล้ายเสียงปี๊ปสแกนบาร์โค้ด
+        oscillator.frequency.value = 1200; // ความถี่เสียง (ยิ่งสูง เสียงยิ่งแหลม)
+        gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime); // ความดัง (0.0 ถึง 1.0)
+        
+        // ตั้งเวลาให้เสียงค่อย ๆ ดับลง ป้องกันเสียงเปรี๊ยะตอนจบ
+        gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.15);
+
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.15); // เล่นนาน 0.15 วินาที
+      } catch (error) {
+        console.error("ไม่สามารถเล่นเสียงได้:", error);
+      }
+    }
+
+    // ปลดล็อกระบบเสียงล่วงหน้าทันทีที่ผู้ใช้แตะโดนหน้าจอครั้งแรก
+    document.addEventListener('click', () => {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    }, { once: true });
+    // -------------------------------------------------------------
+
     // 1. ดึงข้อมูลกล้องทั้งหมดในเครื่อง
     Html5Qrcode.getCameras().then(devices => {
       if (devices && devices.length) {
         cameras = devices;
         
         if (cameras.length > 1) {
-          btnSwitch.style.display = "flex"; // ใช้ flex ให้เข้ากับสไตล์ปุ่มคู่
+          btnSwitch.style.display = "flex"; 
         }
         
         let backCamIndex = cameras.findIndex(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('environment'));
@@ -227,7 +265,7 @@
       isScanning = true;
       
       const advancedConfig = {
-        fps: 12, // เพิ่มความลื่นไหลในการตรวจจับขึ้นเล็กน้อย
+        fps: 12, 
         videoConstraints: {
           facingMode: "environment",
           focusMode: "continuous"
@@ -242,7 +280,8 @@
           if (id !== lastScan) {
             lastScan = id;
             
-            beepSound.play().catch(e => console.log("Audio play prevented"));
+            // เรียกฟังก์ชันเล่นเสียงปี๊ปตัวใหม่
+            playBeepSound();
             
             const wrapper = document.querySelector('.reader-wrapper');
             wrapper.classList.add('flash');
